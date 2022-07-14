@@ -196,7 +196,7 @@ def getEHfields(mesh1d, sigma1d, freq, h_0=0, I=1, DL=1, fi=0, r=1e6):
         F4 = d2 * np.exp(u[0]*mesh1d.cell_centers_x[0]) - F3/m**2
         Ex[0], Hy[0] = calculate_EH_(m, wj0, wj1, r, PE, freq, cofi, k[0], F1, F2, F3, F4)
 
-        return Ex, np.zeros_like(Ex), Hy, np.zeros_like(Hy)
+    return Ex, np.zeros_like(Ex), Hy, np.zeros_like(Hy)
 
     
 def calculate_EH(m, wj0, wj1, r, PE, freq, cofi, k, X, X_1, V, V_1):

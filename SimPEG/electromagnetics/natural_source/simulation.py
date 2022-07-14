@@ -43,7 +43,7 @@ class Simulation1DElectricField(BaseFDEMSimulation):
 
     .. math::
 
-        \partial_z E_y = i \omega \mu_0 H_x = 0
+        \partial_z E_y + i \omega \mu_0 H_x = 0
 
         sigma E_y = \partial_z H_x
 
