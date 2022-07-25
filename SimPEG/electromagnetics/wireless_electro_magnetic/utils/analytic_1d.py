@@ -34,10 +34,10 @@ def getEHfields(mesh1d, sigma1d, freq, h_0=0, I=1, DL=1, fi=0, r=1e6):
         R1[i+1] = 1. / np.tanh(u[i+1] * mesh1d.edge_x_lengths[i+1] + np.arctanh(u[i]/u[i+1]/R1[i]))
         R2[i+1] = 1. / np.tanh(u[i+1] * mesh1d.edge_x_lengths[i+1] + np.arctanh(sigma1d[i+1]*u[i] /sigma1d[i]/u[i+1]/R2[i]))
 
-    c0c1 = 1. / 2 * (1 + u[-2] / u[-1]) * np.exp((u[-2]-u[-1]) * -mesh1d.edge_x_lengths[1])
-    c0d1 = 1. / 2 * (1 - u[-2] / u[-1]) * np.exp((u[-2]+u[-1]) * -mesh1d.edge_x_lengths[1])
-    c0c2 = 1. / 2 * (1 + u[-2] / u[-1] * k[-1]**2 / k[-2]**2) * np.exp((u[-2]-u[-1]) * -mesh1d.edge_x_lengths[1])
-    c0d2 = 1. / 2 * (1 - u[-2] / u[-1] * k[-1]**2 / k[-2]**2) * np.exp((u[-2]+u[-1]) * -mesh1d.edge_x_lengths[1])
+    c0c1 = 1. / 2 * (1 + u[-1] / u[-2]) * np.exp((u[-1]-u[-2]) * -mesh1d.edge_x_lengths[-2])
+    c0d1 = 1. / 2 * (1 - u[-1] / u[-2]) * np.exp((u[-1]+u[-2]) * -mesh1d.edge_x_lengths[-2])
+    c0c2 = 1. / 2 * (1 + u[-1] / u[-2] * k[-2]**2 / k[-1]**2) * np.exp((u[-1]-u[-2]) * -mesh1d.edge_x_lengths[-2])
+    c0d2 = 1. / 2 * (1 - u[-1] / u[-2] * k[-2]**2 / k[-1]**2) * np.exp((u[-1]+u[-2]) * -mesh1d.edge_x_lengths[-2])
 
     tmp = []
     tmp.append(c0c1 + c0d1)
@@ -47,21 +47,21 @@ def getEHfields(mesh1d, sigma1d, freq, h_0=0, I=1, DL=1, fi=0, r=1e6):
     tmp.append(tmp[1]/tmp[0])
     tmp.append(tmp[2]/tmp[3])
     tmp.append(u[-3]/R1[-3])
-    tmp.append(k[-1]**2 / k[-3]**2 / u[-1] * tmp[5] + R2[-3] / u[-3])
+    tmp.append(k[-2]**2 / k[-3]**2 / u[-2] * tmp[5] + R2[-3] / u[-3])
 
-    XX = m / u[-1] * (np.exp(-u[-1]*h_0) - np.exp(u[-1]*h_0)) * (1 - tmp[6]) + m * (np.exp(-u[-1]*h_0) + np.exp(u[-1]*h_0)) / (u[-1]*tmp[4] + tmp[6])
+    XX = m / u[-2] * (np.exp(-u[-2]*h_0) - np.exp(u[-2]*h_0)) * (1 - tmp[6]) + m * (np.exp(-u[-2]*h_0) + np.exp(u[-2]*h_0)) / (u[-2]*tmp[4] + tmp[6])
     XX_1 = -tmp[6] * XX
-    VV_1 = (np.exp(-u[-1]*h_0)*(1+tmp[4]) + np.exp(u[-1]*h_0)*(1-tmp[4])) / m / tmp[7]
+    VV_1 = (np.exp(-u[-2]*h_0)*(1+tmp[4]) + np.exp(u[-2]*h_0)*(1-tmp[4])) / m / tmp[7]
     VV = -R2[-3] / u[-3] * VV_1
     ZZ = VV - XX_1/m**2
     ZZ_1 = VV_1 - u[-3]**2 * XX / m**2
     
-    c01 = (u[-1]*XX + XX_1) / 2. / u[-1]
-    d01 = (u[-1]*XX - XX_1 - 2.*m) / 2. / u[-1]
-    c02 = (u[-1]*ZZ + (k[-1]/k[-3])**2 * (XX+ZZ_1) - XX) / 2. / u[-1]
-    d02 = (u[-1]*ZZ - (k[-1]/k[-3])**2 * (XX+ZZ_1) + XX) / 2. / u[-1]
+    c01 = (u[-2]*XX + XX_1) / 2. / u[-1]
+    d01 = (u[-2]*XX - XX_1 - 2.*m) / 2. / u[-1]
+    c02 = (u[-2]*ZZ + (k[-2]/k[-3])**2 * (XX+ZZ_1) - XX) / 2. / u[-2]
+    d02 = (u[-2]*ZZ - (k[-2]/k[-3])**2 * (XX+ZZ_1) + XX) / 2. / u[-2]
 
-    ind = (np.abs(u[-1]*mesh1d.cell_centers_x[-1])>10)
+    ind = (np.abs(u[-2]*mesh1d.cell_centers_x[-1])>10)
     d01[ind]=0
     d02[ind]=0
 
@@ -69,28 +69,28 @@ def getEHfields(mesh1d, sigma1d, freq, h_0=0, I=1, DL=1, fi=0, r=1e6):
     Hy = np.empty((mesh1d.n_edges_x,), dtype=np.complex128)
 
     # Calculate field value of ionosphere
-    c11 = np.exp(u[-1]*mesh1d.edge_x_lengths[-2] + np.log(d01+c01*np.exp(-2*u[-1]*mesh1d.edge_x_lengths[-2])+
-        m/u[-1]*np.exp(-u[-1]*np.abs(-mesh1d.edge_x_lengths[-2]+h_0)-u[-1]*mesh1d.edge_x_lengths[-2]))+u[-2]*mesh1d.edge_x_lengths[-2])
-    c12 = np.exp(u[-1]*mesh1d.edge_x_lengths[-2] + np.log(d02+c02*np.exp(-2*u[-1]*mesh1d.edge_x_lengths[-2]))+u[-2]*mesh1d.edge_x_lengths[-2])
+    c11 = np.exp(u[-2]*mesh1d.edge_x_lengths[-2] + np.log(d01+c01*np.exp(-2*u[-2]*mesh1d.edge_x_lengths[-2])+
+        m/u[-2]*np.exp(-u[-2]*np.abs(-mesh1d.edge_x_lengths[-2]+h_0)-u[-2]*mesh1d.edge_x_lengths[-2]))+u[-1]*mesh1d.edge_x_lengths[-2])
+    c12 = np.exp(u[-2]*mesh1d.edge_x_lengths[-2] + np.log(d02+c02*np.exp(-2*u[-2]*mesh1d.edge_x_lengths[-2]))+u[-1]*mesh1d.edge_x_lengths[-2])
 
-    X = np.exp(-u[-2]*mesh1d.cell_centers_x[-1]+np.log(c11))
-    Z = np.exp(-u[-2]*mesh1d.cell_centers_x[-1]+np.log(c12))
-    Z_1 = u[-2]*Z
-    X_1 = u[-2]*X
+    X = np.exp(-u[-1]*mesh1d.cell_centers_x[-1]+np.log(c11))
+    Z = np.exp(-u[-1]*mesh1d.cell_centers_x[-1]+np.log(c12))
+    Z_1 = u[-1]*Z
+    X_1 = u[-1]*X
     V = Z + X_1/m**2
-    V_1 = Z_1 + u[-2]**2 * X / m**2
-    Ex[-1], Hy[-1] = calculate_EH(m, wj0, wj1, r, PE, freq, cofi, k[-2], X, X_1, V, V_1)
+    V_1 = Z_1 + u[-1]**2 * X / m**2
+    Ex[-1], Hy[-1] = calculate_EH(m, wj0, wj1, r, PE, freq, cofi, k[-1], X, X_1, V, V_1)
 
     # Calculate field value in the air
-    X = np.exp(u[-1]*mesh1d.cell_centers_x[-2] + np.log(d01+c01*np.exp(-2*u[-1]*mesh1d.cell_centers_x[-2]) + 
-        m/u[-1]*np.exp(-u[-1]*np.abs(-mesh1d.cell_centers_x[-2]+h_0)-u[-1]*mesh1d.cell_centers_x[-2])))
-    X_1 = np.exp(u[-1]*mesh1d.cell_centers_x[-2] + np.log(-d01+c01*np.exp(-2*u[-1]*mesh1d.cell_centers_x[-2]) + 
-        m / u[-1]*np.exp(-u[-1]*np.abs(-mesh1d.cell_centers_x[-2]+h_0)-u[-1]*mesh1d.cell_centers_x[-2])) + np.log(u[-1]))
-    Z = np.exp(u[-1]*mesh1d.cell_centers_x[-2] + np.log(d02+c02*np.exp(-2*u[-1]*mesh1d.cell_centers_x[-2])))
-    Z_1 = np.exp(u[-1]*mesh1d.cell_centers_x[-2] + np.log(u[-1]) + np.log(-d02+c02*np.exp(-2*u[-1]*mesh1d.cell_centers_x[-2])))
+    X = np.exp(u[-2]*mesh1d.cell_centers_x[-2] + np.log(d01+c01*np.exp(-2*u[-2]*mesh1d.cell_centers_x[-2]) + 
+        m/u[-2]*np.exp(-u[-2]*np.abs(-mesh1d.cell_centers_x[-2]+h_0)-u[-2]*mesh1d.cell_centers_x[-2])))
+    X_1 = np.exp(u[-2]*mesh1d.cell_centers_x[-2] + np.log(-d01+c01*np.exp(-2*u[-2]*mesh1d.cell_centers_x[-2]) + 
+        m / u[-2]*np.exp(-u[-2]*np.abs(-mesh1d.cell_centers_x[-2]+h_0)-u[-2]*mesh1d.cell_centers_x[-2])) + np.log(u[-2]))
+    Z = np.exp(u[-2]*mesh1d.cell_centers_x[-2] + np.log(d02+c02*np.exp(-2*u[-2]*mesh1d.cell_centers_x[-2])))
+    Z_1 = np.exp(u[-2]*mesh1d.cell_centers_x[-2] + np.log(u[-2]) + np.log(-d02+c02*np.exp(-2*u[-2]*mesh1d.cell_centers_x[-2])))
     V = Z + X_1/m**2
     V_1 = Z_1 + u[-1]**2 * X/m**2
-    Ex[-2], Hy[-2] = calculate_EH(m, wj0, wj1, r, PE, freq, cofi, k[0], X, X_1, V, V_1)
+    Ex[-2], Hy[-2] = calculate_EH(m, wj0, wj1, r, PE, freq, cofi, k[-2], X, X_1, V, V_1)
 
     # Calculate field value underneath
     c1 = np.exp(np.log(u[-3]*XX + XX_1) - np.log(2*u[-3]))
