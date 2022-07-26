@@ -49,15 +49,16 @@ def getEHfields(mesh1d, sigma1d, freq, h_0=0, I=1, DL=1, fi=0, r=1e6):
     tmp.append(u[-3]/R1[-3])
     tmp.append(k[-2]**2 / k[-3]**2 / u[-2] * tmp[5] + R2[-3] / u[-3])
 
-    XX = m / u[-2] * (np.exp(-u[-2]*h_0) - np.exp(u[-2]*h_0)) * (1 - tmp[6]) + m * (np.exp(-u[-2]*h_0) + np.exp(u[-2]*h_0)) / (u[-2]*tmp[4] + tmp[6])
+    XX = m / u[-2] * (np.exp(-u[-2]*h_0) - np.exp(u[-2]*h_0)) + (-m / u[-2] * (np.exp(-u[-2]*h_0) - np.exp(u[-2]*h_0)) * tmp[6] \
+        + m * (np.exp(-u[-2]*h_0) + np.exp(u[-2]*h_0))) / (u[-2]*tmp[4] + tmp[6])
     XX_1 = -tmp[6] * XX
     VV_1 = (np.exp(-u[-2]*h_0)*(1+tmp[4]) + np.exp(u[-2]*h_0)*(1-tmp[4])) / m / tmp[7]
     VV = -R2[-3] / u[-3] * VV_1
     ZZ = VV - XX_1/m**2
     ZZ_1 = VV_1 - u[-3]**2 * XX / m**2
     
-    c01 = (u[-2]*XX + XX_1) / 2. / u[-1]
-    d01 = (u[-2]*XX - XX_1 - 2.*m) / 2. / u[-1]
+    c01 = (u[-2]*XX + XX_1) / 2. / u[-2]
+    d01 = (u[-2]*XX - XX_1 - 2.*m) / 2. / u[-2]
     c02 = (u[-2]*ZZ + (k[-2]/k[-3])**2 * (XX+ZZ_1) - XX) / 2. / u[-2]
     d02 = (u[-2]*ZZ - (k[-2]/k[-3])**2 * (XX+ZZ_1) + XX) / 2. / u[-2]
 
@@ -89,7 +90,7 @@ def getEHfields(mesh1d, sigma1d, freq, h_0=0, I=1, DL=1, fi=0, r=1e6):
     Z = np.exp(u[-2]*mesh1d.cell_centers_x[-2] + np.log(d02+c02*np.exp(-2*u[-2]*mesh1d.cell_centers_x[-2])))
     Z_1 = np.exp(u[-2]*mesh1d.cell_centers_x[-2] + np.log(u[-2]) + np.log(-d02+c02*np.exp(-2*u[-2]*mesh1d.cell_centers_x[-2])))
     V = Z + X_1/m**2
-    V_1 = Z_1 + u[-1]**2 * X/m**2
+    V_1 = Z_1 + u[-2]**2 * X/m**2
     Ex[-2], Hy[-2] = calculate_EH(m, wj0, wj1, r, PE, freq, cofi, k[-2], X, X_1, V, V_1)
 
     # Calculate field value underneath
