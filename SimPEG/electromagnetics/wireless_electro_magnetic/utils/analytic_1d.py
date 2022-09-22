@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.constants import mu_0, epsilon_0
+from scipy.special import j0, j1
 
 from ...utils import omega
 import importlib.resources
@@ -7,7 +8,7 @@ import importlib.resources
 coef_path = importlib.resources.path('SimPEG.electromagnetics.wireless_electro_magnetic.utils', 
     'coefficients.npz')
 
-def getEHfields(mesh1d, sigma1d, freq, h_0=0, I=1, DL=1, fi=0, r=1e6):
+def getEHfields(mesh1d, sigma1d, freq, h_0=0, I=1, DL=1, fi=0, r=1e6, qwe_order=0):
     """
     Calculate the recieved field response
 
@@ -21,13 +22,19 @@ def getEHfields(mesh1d, sigma1d, freq, h_0=0, I=1, DL=1, fi=0, r=1e6):
     coefs = np.load(coef_path)
     wj0 = coefs['wj0']
     wj1 = coefs['wj1']
-    ybase = coefs['YBASE']
-    
+    if not qwe_order:
+        ybase = coefs['YBASE']
+        m = ybase / r
+    else:
+        temp, _ = np.polynomial.legendre.leggauss(300)
+        temp+=1
+        #m = np.hstack([1.1*(temp+np.sum([2 for j in range(i)])) for i in range(qwe_order)]) / r
+        m = np.hstack([.9*(np.exp2((i/qwe_order)**2)*temp+np.sum([2*np.exp2((j/qwe_order)**2) for j in range(i)])) for i in range(qwe_order)]) / r
+
     k = np.sqrt(-1j * omega(freq) * mu_0 * sigma1d - omega(freq)**2 * epsilon_0 * mu_0)
-    u = np.ones((len(sigma1d),len(wj0)), dtype=np.complex128)
-    R1 = np.ones((len(sigma1d),len(wj0)), dtype=np.complex128)
-    R2 = np.ones((len(sigma1d),len(wj0)), dtype=np.complex128)
-    m = ybase / r
+    u = np.ones((len(sigma1d),len(m)), dtype=np.complex128)
+    R1 = np.ones((len(sigma1d),len(m)), dtype=np.complex128)
+    R2 = np.ones((len(sigma1d),len(m)), dtype=np.complex128)
     
     u = [np.sqrt(m**2 + k[i]**2) for i in range(len(sigma1d))]
     for i in range(len(sigma1d)-1):
@@ -80,7 +87,7 @@ def getEHfields(mesh1d, sigma1d, freq, h_0=0, I=1, DL=1, fi=0, r=1e6):
     X_1 = u[-1]*X
     V = Z + X_1/m**2
     V_1 = Z_1 + u[-1]**2 * X / m**2
-    Ex[-1], Hy[-1] = calculate_EH(m, wj0, wj1, r, PE, freq, cofi, k[-1], X, X_1, V, V_1)
+    Ex[-1], Hy[-1] = calculate_EH(m, wj0, wj1, r, PE, freq, cofi, k[-1], X, X_1, V, V_1, qwe_order)
 
     # Calculate field value in the air
     X = np.exp(u[-2]*mesh1d.cell_centers_x[-2] + np.log(d01+c01*np.exp(-2*u[-2]*mesh1d.cell_centers_x[-2]) + 
@@ -91,7 +98,7 @@ def getEHfields(mesh1d, sigma1d, freq, h_0=0, I=1, DL=1, fi=0, r=1e6):
     Z_1 = np.exp(u[-2]*mesh1d.cell_centers_x[-2] + np.log(u[-2]) + np.log(-d02+c02*np.exp(-2*u[-2]*mesh1d.cell_centers_x[-2])))
     V = Z + X_1/m**2
     V_1 = Z_1 + u[-2]**2 * X/m**2
-    Ex[-2], Hy[-2] = calculate_EH(m, wj0, wj1, r, PE, freq, cofi, k[-2], X, X_1, V, V_1)
+    Ex[-2], Hy[-2] = calculate_EH(m, wj0, wj1, r, PE, freq, cofi, k[-2], X, X_1, V, V_1, qwe_order)
 
     # Calculate field value underneath
     c1 = np.exp(np.log(u[-3]*XX + XX_1) - np.log(2*u[-3]))
@@ -116,7 +123,7 @@ def getEHfields(mesh1d, sigma1d, freq, h_0=0, I=1, DL=1, fi=0, r=1e6):
     F3 = -u[-3]*T311 + u[-3]*T312
     F4 = T321 + T322 - F3/m**2
 
-    Ex[-3], Hy[-3] = calculate_EH_(m, wj0, wj1, r, PE, freq, cofi, k[-3], F1, F2, F3, F4)
+    Ex[-3], Hy[-3] = calculate_EH_(m, wj0, wj1, r, PE, freq, cofi, k[-3], F1, F2, F3, F4, qwe_order)
     
     if mesh1d.n_edges_x>3:
         T111 = np.exp(np.log(d1)-u[-3]*mesh1d.edge_x_lengths[-3])
@@ -172,7 +179,7 @@ def getEHfields(mesh1d, sigma1d, freq, h_0=0, I=1, DL=1, fi=0, r=1e6):
             F2 = FF - (k[-i-4]/m)**2 * F
             F3 = -u[-i-4]*T311 + u[-i-4]*T312
             F4 = T321 + T322 - F3/m**2
-            Ex[-i-4], Hy[-i-4] = calculate_EH_(m, wj0, wj1, r, PE, freq, cofi, k[-i-4], F1, F2, F3, F4)
+            Ex[-i-4], Hy[-i-4] = calculate_EH_(m, wj0, wj1, r, PE, freq, cofi, k[-i-4], F1, F2, F3, F4, qwe_order)
 
         c1 = np.zeros((len(c1)))
         d1 = np.exp(np.log(X) - u[0]*mesh1d.nodes_x[1])
@@ -195,12 +202,12 @@ def getEHfields(mesh1d, sigma1d, freq, h_0=0, I=1, DL=1, fi=0, r=1e6):
         F2 = FF - (k[0]/m)**2 * F
         F3 = -u[0] * d1 * np.exp(u[0]*mesh1d.cell_centers_x[0])
         F4 = d2 * np.exp(u[0]*mesh1d.cell_centers_x[0]) - F3/m**2
-        Ex[0], Hy[0] = calculate_EH_(m, wj0, wj1, r, PE, freq, cofi, k[0], F1, F2, F3, F4)
+        Ex[0], Hy[0] = calculate_EH_(m, wj0, wj1, r, PE, freq, cofi, k[0], F1, F2, F3, F4, qwe_order)
 
     return Ex, np.zeros_like(Ex), Hy, np.zeros_like(Hy)
 
     
-def calculate_EH(m, wj0, wj1, r, PE, freq, cofi, k, X, X_1, V, V_1):
+def calculate_EH(m, wj0, wj1, r, PE, freq, cofi, k, X, X_1, V, V_1, qwe_order):
     F=X
     FF = V_1
     F1 = F
@@ -208,13 +215,46 @@ def calculate_EH(m, wj0, wj1, r, PE, freq, cofi, k, X, X_1, V, V_1):
     F3 = X_1
     F4 = V - X_1 / m**2
 
-    I1 = np.sum(F1 * wj0) / r
-    I2 = np.sum(F2 * m * wj1) / r
-    I3 = np.sum(F2 * m**2 * wj0) / r
+    if not qwe_order:
+        I1 = np.sum(F1 * wj0) / r
+        I2 = np.sum(F2 * m * wj1) / r
+        I3 = np.sum(F2 * m**2 * wj0) / r
 
-    I4 = np.sum(F3 * wj0) / r
-    I5 = np.sum(F4 * m * wj1) / r
-    I6 = np.sum(F4 * m**2 * wj0) /r
+        I4 = np.sum(F3 * wj0) / r
+        I5 = np.sum(F4 * m * wj1) / r
+        I6 = np.sum(F4 * m**2 * wj0) /r
+    else:
+        I1 = EpsShanks(F1 * j0(m*r), qwe_order) / r
+        I2 = EpsShanks(F2 * m * j1(m*r), qwe_order) / r
+        I3 = EpsShanks(F2 * m**2 * j0(m*r), qwe_order) / r
+        
+        I4 = EpsShanks(F3 * j0(m*r), qwe_order) / r
+        I5 = EpsShanks(F4 * m * j1(m*r), qwe_order) / r
+        I6 = EpsShanks(F4 * m**2 * j0(m*r), qwe_order) / r
+
+    Ex = PE / 4 / np.pi * 1j * omega(freq) * mu_0 * \
+        (I1 + 1 / k**2 / r * (1 - 2 * cofi**2)*I2 + 1 / k**2 * cofi**2 * I3)
+    
+    Hy = PE / 4 / np.pi * (I4 + 1 / r * (1 - 2 * cofi**2) * I5 + I6 * cofi**2)
+    return Ex, Hy
+
+def calculate_EH_(m, wj0, wj1, r, PE, freq, cofi, k, F1, F2, F3, F4, qwe_order):
+    if not qwe_order:
+        I1 = np.sum(F1 * wj0) / r
+        I2 = np.sum(F2 * m * wj1) / r
+        I3 = np.sum(F2 * m**2 * wj0) / r
+
+        I4 = np.sum(F3 * wj0) / r
+        I5 = np.sum(F4 * m * wj1) / r
+        I6 = np.sum(F4 * m**2 * wj0) /r
+    else:
+        I1 = EpsShanks(F1 * j0(m*r), qwe_order) / r
+        I2 = EpsShanks(F2 * m * j1(m*r), qwe_order) / r
+        I3 = EpsShanks(F2 * m**2 * j0(m*r), qwe_order) / r
+        
+        I4 = EpsShanks(F3 * j0(m*r), qwe_order) / r
+        I5 = EpsShanks(F4 * m * j1(m*r), qwe_order) / r
+        I6 = EpsShanks(F4 * m**2 * j0(m*r), qwe_order) / r
 
     Ex = PE / 4 / np.pi * 1j * omega(freq) * mu_0 * \
         (I1 + 1 / k**2 / r * (1 - 2 * cofi**2)*I2 + 1 / k**2 * cofi**2 * I3)
@@ -222,17 +262,37 @@ def calculate_EH(m, wj0, wj1, r, PE, freq, cofi, k, X, X_1, V, V_1):
     Hy = PE / 4 / np.pi * (I4 + 1 / r * (1 - 2 * cofi**2) * I5 + I6 * cofi**2)
     return Ex, Hy
 
-def calculate_EH_(m, wj0, wj1, r, PE, freq, cofi, k, F1, F2, F3, F4):
-    I1 = np.sum(F1 * wj0) / r
-    I2 = np.sum(F2 * m * wj1) / r
-    I3 = np.sum(F2 * m**2 * wj0) / r
+def EpsShanks(arr_, order, trim_a=1e-15, trim_b=1e-38):
+    num_pack = int(len(arr_) / order)
+    _, w0 = np.polynomial.legendre.leggauss(num_pack)
+    #arr = np.hstack([1.1*np.sum(arr_[i*num_pack:(i+1)*num_pack]*w0) for i in range(order)])
+    arr = np.hstack([.9*np.exp2((i/order)**2)*np.sum(arr_[i*num_pack:(i+1)*num_pack]*w0) for i in range(order)])
+    indx = 0
+    currentSum = arr[indx]
+    result = currentSum
+    result_prev = 0
+    err = np.abs(result - result_prev)
+    temp = [np.array([currentSum], dtype=np.complex128)]
 
-    I4 = np.sum(F3 * wj0) / r
-    I5 = np.sum(F4 * m * wj1) / r
-    I6 = np.sum(F4 * m**2 * wj0) /r
+    while err>(trim_a*np.abs(result)+trim_b) and indx<len(arr)-2:
+        indx += 1
+        temp.append(np.zeros(indx+1, dtype=np.complex128))
+        F = arr[indx]
+        currentSum += F
+        temp[-1][0] = currentSum
+        temp[-1][1] = 1. / F
+        if indx>1:
+            for i in range(len(temp[-1])-2):
+                #with np.errstate(divide="raise"):
+                temp[-1][i+2] = temp[-2][i] + 1. / (temp[-1][i+1] - temp[-2][i+1])
+        
+        result_prev = result
+        if indx%2==0:
+            result = temp[-1][-1]
+        else:
+            result = temp[-1][-2]
+        
+        err = np.abs(result - result_prev)
+        temp.remove(temp[0])
 
-    Ex = PE / 4 / np.pi * 1j * omega(freq) * mu_0 * \
-        (I1 + 1 / k**2 / r * (1 - 2 * cofi**2)*I2 + 1 / k**2 * cofi**2 * I3)
-    
-    Hy = PE / 4 / np.pi * (I4 + 1 / r * (1 - 2 * cofi**2) * I5 + I6 * cofi**2)
-    return Ex, Hy
+    return result
