@@ -29,7 +29,7 @@ def getEHfields(mesh1d, sigma1d, freq, h_0=0, I=1, DL=1, fi=0, r=1e6, qwe_order=
         temp, _ = np.polynomial.legendre.leggauss(300)
         temp+=1
         #m = np.hstack([1.1*(temp+np.sum([2 for j in range(i)])) for i in range(qwe_order)]) / r
-        m = np.hstack([.9*(np.exp2((i/qwe_order)**2)*temp+np.sum([2*np.exp2((j/qwe_order)**2) for j in range(i)])) for i in range(qwe_order)]) / r
+        m = np.hstack([.6*(np.exp2((i/qwe_order)**3)*temp+np.sum([2*np.exp2((j/qwe_order)**3) for j in range(i)])) for i in range(qwe_order)]) / r
 
     k = np.sqrt(-1j * omega(freq) * mu_0 * sigma1d - omega(freq)**2 * epsilon_0 * mu_0)
     u = np.ones((len(sigma1d),len(m)), dtype=np.complex128)
@@ -266,7 +266,7 @@ def EpsShanks(arr_, order, trim_a=1e-15, trim_b=1e-38):
     num_pack = int(len(arr_) / order)
     _, w0 = np.polynomial.legendre.leggauss(num_pack)
     #arr = np.hstack([1.1*np.sum(arr_[i*num_pack:(i+1)*num_pack]*w0) for i in range(order)])
-    arr = np.hstack([.9*np.exp2((i/order)**2)*np.sum(arr_[i*num_pack:(i+1)*num_pack]*w0) for i in range(order)])
+    arr = np.hstack([.6*np.exp2((i/order)**3)*np.sum(arr_[i*num_pack:(i+1)*num_pack]*w0) for i in range(order)])
     indx = 0
     currentSum = arr[indx]
     result = currentSum
