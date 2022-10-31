@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.constants import mu_0, epsilon_0
-from scipy.special import j0, j1
+from scipy.special import j0, j1, jn_zeros
 
 from ...utils import omega
 import importlib.resources
@@ -8,7 +8,7 @@ import importlib.resources
 coef_path = importlib.resources.path('SimPEG.electromagnetics.wireless_electro_magnetic.utils', 
     'coefficients.npz')
 
-def getEHfields(mesh1d, sigma1d, freq, h_0=0, I=1, DL=1, fi=0, r=1e6, qwe_order=0):
+def getEHfields(mesh1d, sigma1d, freq, h_0=0, I=1, DL=1, fi=0, r=1e6, qwe_order=0, key=False):
     """
     Calculate the recieved field response
 
@@ -26,10 +26,13 @@ def getEHfields(mesh1d, sigma1d, freq, h_0=0, I=1, DL=1, fi=0, r=1e6, qwe_order=
         ybase = coefs['YBASE']
         m = ybase / r
     else:
-        temp, _ = np.polynomial.legendre.leggauss(300)
+        temp, _ = np.polynomial.legendre.leggauss(200)
         temp+=1
-        #m = np.hstack([1.1*(temp+np.sum([2 for j in range(i)])) for i in range(qwe_order)]) / r
-        m = np.hstack([.6*(np.exp2((i/qwe_order)**3)*temp+np.sum([2*np.exp2((j/qwe_order)**3) for j in range(i)])) for i in range(qwe_order)]) / r
+        if key:
+            abscissae = np.sort(np.hstack([0, jn_zeros(0, qwe_order), jn_zeros(1, qwe_order)]))
+            m = np.hstack([abscissae[i]+temp*0.5*(abscissae[i+1]-abscissae[i]) for i in range(2*qwe_order)]) / r
+        else:
+            m = np.hstack([.5*(3**((i/qwe_order)**3)*temp+np.sum([2*3**((j/qwe_order)**3) for j in range(i)])) for i in range(qwe_order)]) / r
 
     k = np.sqrt(-1j * omega(freq) * mu_0 * sigma1d - omega(freq)**2 * epsilon_0 * mu_0)
     u = np.ones((len(sigma1d),len(m)), dtype=np.complex128)
@@ -87,7 +90,7 @@ def getEHfields(mesh1d, sigma1d, freq, h_0=0, I=1, DL=1, fi=0, r=1e6, qwe_order=
     X_1 = u[-1]*X
     V = Z + X_1/m**2
     V_1 = Z_1 + u[-1]**2 * X / m**2
-    Ex[-1], Hy[-1] = calculate_EH(m, wj0, wj1, r, PE, freq, cofi, k[-1], X, X_1, V, V_1, qwe_order)
+    Ex[-1], Hy[-1] = calculate_EH(m, wj0, wj1, r, PE, freq, cofi, k[-1], X, X_1, V, V_1, qwe_order, key)
 
     # Calculate field value in the air
     X = np.exp(u[-2]*mesh1d.cell_centers_x[-2] + np.log(d01+c01*np.exp(-2*u[-2]*mesh1d.cell_centers_x[-2]) + 
@@ -98,7 +101,7 @@ def getEHfields(mesh1d, sigma1d, freq, h_0=0, I=1, DL=1, fi=0, r=1e6, qwe_order=
     Z_1 = np.exp(u[-2]*mesh1d.cell_centers_x[-2] + np.log(u[-2]) + np.log(-d02+c02*np.exp(-2*u[-2]*mesh1d.cell_centers_x[-2])))
     V = Z + X_1/m**2
     V_1 = Z_1 + u[-2]**2 * X/m**2
-    Ex[-2], Hy[-2] = calculate_EH(m, wj0, wj1, r, PE, freq, cofi, k[-2], X, X_1, V, V_1, qwe_order)
+    Ex[-2], Hy[-2] = calculate_EH(m, wj0, wj1, r, PE, freq, cofi, k[-2], X, X_1, V, V_1, qwe_order, key)
 
     # Calculate field value underneath
     c1 = np.exp(np.log(u[-3]*XX + XX_1) - np.log(2*u[-3]))
@@ -123,7 +126,7 @@ def getEHfields(mesh1d, sigma1d, freq, h_0=0, I=1, DL=1, fi=0, r=1e6, qwe_order=
     F3 = -u[-3]*T311 + u[-3]*T312
     F4 = T321 + T322 - F3/m**2
 
-    Ex[-3], Hy[-3] = calculate_EH_(m, wj0, wj1, r, PE, freq, cofi, k[-3], F1, F2, F3, F4, qwe_order)
+    Ex[-3], Hy[-3] = calculate_EH_(m, wj0, wj1, r, PE, freq, cofi, k[-3], F1, F2, F3, F4, qwe_order, key)
     
     if mesh1d.n_edges_x>3:
         T111 = np.exp(np.log(d1)-u[-3]*mesh1d.edge_x_lengths[-3])
@@ -179,7 +182,7 @@ def getEHfields(mesh1d, sigma1d, freq, h_0=0, I=1, DL=1, fi=0, r=1e6, qwe_order=
             F2 = FF - (k[-i-4]/m)**2 * F
             F3 = -u[-i-4]*T311 + u[-i-4]*T312
             F4 = T321 + T322 - F3/m**2
-            Ex[-i-4], Hy[-i-4] = calculate_EH_(m, wj0, wj1, r, PE, freq, cofi, k[-i-4], F1, F2, F3, F4, qwe_order)
+            Ex[-i-4], Hy[-i-4] = calculate_EH_(m, wj0, wj1, r, PE, freq, cofi, k[-i-4], F1, F2, F3, F4, qwe_order, key)
 
         c1 = np.zeros((len(c1)))
         d1 = np.exp(np.log(X) - u[0]*mesh1d.nodes_x[1])
@@ -202,12 +205,12 @@ def getEHfields(mesh1d, sigma1d, freq, h_0=0, I=1, DL=1, fi=0, r=1e6, qwe_order=
         F2 = FF - (k[0]/m)**2 * F
         F3 = -u[0] * d1 * np.exp(u[0]*mesh1d.cell_centers_x[0])
         F4 = d2 * np.exp(u[0]*mesh1d.cell_centers_x[0]) - F3/m**2
-        Ex[0], Hy[0] = calculate_EH_(m, wj0, wj1, r, PE, freq, cofi, k[0], F1, F2, F3, F4, qwe_order)
+        Ex[0], Hy[0] = calculate_EH_(m, wj0, wj1, r, PE, freq, cofi, k[0], F1, F2, F3, F4, qwe_order, key)
 
     return Ex, np.zeros_like(Ex), Hy, np.zeros_like(Hy)
 
     
-def calculate_EH(m, wj0, wj1, r, PE, freq, cofi, k, X, X_1, V, V_1, qwe_order):
+def calculate_EH(m, wj0, wj1, r, PE, freq, cofi, k, X, X_1, V, V_1, qwe_order, key):
     F=X
     FF = V_1
     F1 = F
@@ -224,13 +227,13 @@ def calculate_EH(m, wj0, wj1, r, PE, freq, cofi, k, X, X_1, V, V_1, qwe_order):
         I5 = np.sum(F4 * m * wj1) / r
         I6 = np.sum(F4 * m**2 * wj0) /r
     else:
-        I1 = EpsShanks(F1 * j0(m*r), qwe_order) / r
-        I2 = EpsShanks(F2 * m * j1(m*r), qwe_order) / r
-        I3 = EpsShanks(F2 * m**2 * j0(m*r), qwe_order) / r
+        I1 = EpsShanks(F1 * j0(m*r), qwe_order, key) / r
+        I2 = EpsShanks(F2 * m * j1(m*r), qwe_order, key) / r
+        I3 = EpsShanks(F2 * m**2 * j0(m*r), qwe_order, key) / r
         
-        I4 = EpsShanks(F3 * j0(m*r), qwe_order) / r
-        I5 = EpsShanks(F4 * m * j1(m*r), qwe_order) / r
-        I6 = EpsShanks(F4 * m**2 * j0(m*r), qwe_order) / r
+        I4 = EpsShanks(F3 * j0(m*r), qwe_order, key) / r
+        I5 = EpsShanks(F4 * m * j1(m*r), qwe_order, key) / r
+        I6 = EpsShanks(F4 * m**2 * j0(m*r), qwe_order, key) / r
 
     Ex = PE / 4 / np.pi * 1j * omega(freq) * mu_0 * \
         (I1 + 1 / k**2 / r * (1 - 2 * cofi**2)*I2 + 1 / k**2 * cofi**2 * I3)
@@ -238,7 +241,7 @@ def calculate_EH(m, wj0, wj1, r, PE, freq, cofi, k, X, X_1, V, V_1, qwe_order):
     Hy = PE / 4 / np.pi * (I4 + 1 / r * (1 - 2 * cofi**2) * I5 + I6 * cofi**2)
     return Ex, Hy
 
-def calculate_EH_(m, wj0, wj1, r, PE, freq, cofi, k, F1, F2, F3, F4, qwe_order):
+def calculate_EH_(m, wj0, wj1, r, PE, freq, cofi, k, F1, F2, F3, F4, qwe_order, key):
     if not qwe_order:
         I1 = np.sum(F1 * wj0) / r
         I2 = np.sum(F2 * m * wj1) / r
@@ -248,13 +251,13 @@ def calculate_EH_(m, wj0, wj1, r, PE, freq, cofi, k, F1, F2, F3, F4, qwe_order):
         I5 = np.sum(F4 * m * wj1) / r
         I6 = np.sum(F4 * m**2 * wj0) /r
     else:
-        I1 = EpsShanks(F1 * j0(m*r), qwe_order) / r
-        I2 = EpsShanks(F2 * m * j1(m*r), qwe_order) / r
-        I3 = EpsShanks(F2 * m**2 * j0(m*r), qwe_order) / r
+        I1 = EpsShanks(F1 * j0(m*r), qwe_order, key) / r
+        I2 = EpsShanks(F2 * m * j1(m*r), qwe_order, key) / r
+        I3 = EpsShanks(F2 * m**2 * j0(m*r), qwe_order, key) / r
         
-        I4 = EpsShanks(F3 * j0(m*r), qwe_order) / r
-        I5 = EpsShanks(F4 * m * j1(m*r), qwe_order) / r
-        I6 = EpsShanks(F4 * m**2 * j0(m*r), qwe_order) / r
+        I4 = EpsShanks(F3 * j0(m*r), qwe_order, key) / r
+        I5 = EpsShanks(F4 * m * j1(m*r), qwe_order, key) / r
+        I6 = EpsShanks(F4 * m**2 * j0(m*r), qwe_order, key) / r
 
     Ex = PE / 4 / np.pi * 1j * omega(freq) * mu_0 * \
         (I1 + 1 / k**2 / r * (1 - 2 * cofi**2)*I2 + 1 / k**2 * cofi**2 * I3)
@@ -262,11 +265,16 @@ def calculate_EH_(m, wj0, wj1, r, PE, freq, cofi, k, F1, F2, F3, F4, qwe_order):
     Hy = PE / 4 / np.pi * (I4 + 1 / r * (1 - 2 * cofi**2) * I5 + I6 * cofi**2)
     return Ex, Hy
 
-def EpsShanks(arr_, order, trim_a=1e-15, trim_b=1e-38):
-    num_pack = int(len(arr_) / order)
-    _, w0 = np.polynomial.legendre.leggauss(num_pack)
-    #arr = np.hstack([1.1*np.sum(arr_[i*num_pack:(i+1)*num_pack]*w0) for i in range(order)])
-    arr = np.hstack([.6*np.exp2((i/order)**3)*np.sum(arr_[i*num_pack:(i+1)*num_pack]*w0) for i in range(order)])
+def EpsShanks(arr_, order, key, trim_a=1e-15, trim_b=1e-38):
+    if key:
+        num_pack = int(len(arr_) / order / 2)
+        _, w0 = np.polynomial.legendre.leggauss(num_pack)
+        abscissae = np.sort(np.hstack([0, jn_zeros(0, order), jn_zeros(1, order)]))
+        arr = np.array([0.5*(abscissae[i+1]-abscissae[i])*np.sum(arr_[i*num_pack:(i+1)*num_pack]*w0) for i in range(2*order)])
+    else:
+        num_pack = int(len(arr_) / order)
+        _, w0 = np.polynomial.legendre.leggauss(num_pack)
+        arr = np.hstack([.5*3**((i/order)**3)*np.sum(arr_[i*num_pack:(i+1)*num_pack]*w0) for i in range(order)])
     indx = 0
     currentSum = arr[indx]
     result = currentSum
