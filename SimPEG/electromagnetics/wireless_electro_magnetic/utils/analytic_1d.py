@@ -101,9 +101,9 @@ def getEHfields(mesh1d, sigma1d, freq, zd=None, h_0=0, I=1, DL=1, fi=0, r=1e6, q
     V = T121 + T122
     V_1 = -u[-3]*T121 + u[-3]*T122
     isthatlayer = np.nonzero((zd>mesh1d.nodes_x[-4])*(zd<=mesh1d.nodes_x[-3]))[0] # indices of current earth block
-    for i in isthatlayer:
-        F1, F2, F3, F4 = return_variable_(m, k[-3], u[-3], zd[i], c1, d1, c2, d2)
-        Ex[i], Hy[i] = calculate_EH_(m, wj0, wj1, r, PE, freq, cofi, k[-3], F1, F2, F3, F4, qwe_order, key)
+    for _i in isthatlayer:
+        F1, F2, F3, F4 = return_variable_(m, k[-3], u[-3], zd[_i], c1, d1, c2, d2)
+        Ex[_i], Hy[_i] = calculate_EH_(m, wj0, wj1, r, PE, freq, cofi, k[-3], F1, F2, F3, F4, qwe_order, key)
 
     for i in range(mesh1d.n_edges_x-4):
         c1 = np.exp(np.log(u[-i-4]*X + X_1) - np.log(2*u[-i-4])+u[-i-4]*mesh1d.nodes_x[-i-4])
@@ -126,9 +126,9 @@ def getEHfields(mesh1d, sigma1d, freq, zd=None, h_0=0, I=1, DL=1, fi=0, r=1e6, q
         V = T221 + T222
         V_1 = -u[-i-4]*T221 + u[-i-4]*T222
         isthatlayer = np.nonzero((zd>mesh1d.nodes_x[-i-5])*(zd<=mesh1d.nodes_x[-i-4]))[0] # indices of current earth block
-        for i in isthatlayer:
-            F1, F2, F3, F4 = return_variable_(m, k[-i-4], u[-i-4], zd[i], c1, d1, c2, d2)
-            Ex[i], Hy[i] = calculate_EH_(m, wj0, wj1, r, PE, freq, cofi, k[-i-4], F1, F2, F3, F4, qwe_order, key)
+        for _i in isthatlayer:
+            F1, F2, F3, F4 = return_variable_(m, k[-i-4], u[-i-4], zd[_i], c1, d1, c2, d2)
+            Ex[_i], Hy[_i] = calculate_EH_(m, wj0, wj1, r, PE, freq, cofi, k[-i-4], F1, F2, F3, F4, qwe_order, key)
 
     c1 = np.zeros((len(c1)))
     d1 = np.exp(np.log(X) - u[0]*mesh1d.nodes_x[1])
@@ -136,24 +136,24 @@ def getEHfields(mesh1d, sigma1d, freq, zd=None, h_0=0, I=1, DL=1, fi=0, r=1e6, q
     d2 = np.exp(np.log(V) - u[0]*mesh1d.nodes_x[1])
 
     isthatlayer = np.nonzero(zd<=mesh1d.nodes_x[2])[0] # indices of current earth block
-    for i in isthatlayer:
-        T311 = np.exp(np.log(d1)+u[0]*zd[i])
-        T312 = np.exp(np.log(c1)-u[0]*zd[i])
-        T321 = np.exp(np.log(d2)+u[0]*zd[i])
-        T322 = np.exp(np.log(c2)-u[0]*zd[i])
+    for _i in isthatlayer:
+        T311 = np.exp(np.log(d1)+u[0]*zd[_i])
+        T312 = np.exp(np.log(c1)-u[0]*zd[_i])
+        T321 = np.exp(np.log(d2)+u[0]*zd[_i])
+        T322 = np.exp(np.log(c2)-u[0]*zd[_i])
     
         ind = (np.abs(T311)<np.abs(T312))
         T312[ind] = 0
         ind = (np.abs(T321)<np.abs(T322))
         T322[ind] = 0
 
-        F = d1*np.exp(u[0]*zd[i])
-        FF = -u[0]*d2*np.exp(u[0]*zd[i])
+        F = d1*np.exp(u[0]*zd[_i])
+        FF = -u[0]*d2*np.exp(u[0]*zd[_i])
         F1 = F
         F2 = FF - (k[0]/m)**2 * F
-        F3 = -u[0] * d1 * np.exp(u[0]*zd[i])
-        F4 = d2 * np.exp(u[0]*zd[i]) - F3/m**2
-        Ex[i], Hy[i] = calculate_EH_(m, wj0, wj1, r, PE, freq, cofi, k[0], F1, F2, F3, F4, qwe_order, key)
+        F3 = -u[0] * d1 * np.exp(u[0]*zd[_i])
+        F4 = d2 * np.exp(u[0]*zd[_i]) - F3/m**2
+        Ex[_i], Hy[_i] = calculate_EH_(m, wj0, wj1, r, PE, freq, cofi, k[0], F1, F2, F3, F4, qwe_order, key)
 
     return Ex, np.zeros_like(Ex), Hy, np.zeros_like(Hy)
 
