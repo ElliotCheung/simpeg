@@ -8,7 +8,7 @@ import importlib.resources
 coef_path = importlib.resources.path('SimPEG.electromagnetics.wireless_electro_magnetic.utils', 
     'coefficients.npz')
 
-def getEHfields(mesh1d, sigma1d, freq, zd=None, h_0=0, I=1, DL=1, fi=0, r=1e6, qwe_order=30, key=False):
+def getEHfields(mesh1d, sigma1d, freq, zd=None, h_0=0, I=1, DL=1, fi=0, r=4e6, qwe_order=30, key=False):
     """
     Calculate the recieved field response
 
@@ -42,7 +42,7 @@ def getEHfields(mesh1d, sigma1d, freq, zd=None, h_0=0, I=1, DL=1, fi=0, r=1e6, q
     R1 = np.ones((len(sigma1d),len(m)), dtype=np.complex128)
     R2 = np.ones((len(sigma1d),len(m)), dtype=np.complex128)
     
-    u = [np.sqrt(m**2 + k[i]**2) for i in range(len(sigma1d))]
+    for i in range(len(sigma1d)): u[i, :]=np.sqrt(m**2 + k[i]**2)
     for i in range(len(sigma1d)-1):
         R1[i+1] = 1. / np.tanh(u[i+1] * mesh1d.edge_x_lengths[i+1] + np.arctanh(u[i]/u[i+1]/R1[i]))
         R2[i+1] = 1. / np.tanh(u[i+1] * mesh1d.edge_x_lengths[i+1] + np.arctanh(sigma1d[i+1]*u[i] /sigma1d[i]/u[i+1]/R2[i]))
@@ -54,7 +54,7 @@ def getEHfields(mesh1d, sigma1d, freq, zd=None, h_0=0, I=1, DL=1, fi=0, r=1e6, q
     iind = np.nonzero(mesh1d.nodes_x[-2] < zd)[0]                                      # indices of ionosphere block
     aind = np.nonzero((mesh1d.nodes_x[-2] >= zd)*(mesh1d.nodes_x[-3] < zd))[0]         # indices of air block
 
-    c01, d01, c02, d02, c1, d1, c2, d2 = return_variables(mesh1d, h_0, m, k, u, R1, R2)
+    c01, d01, c02, d02, c1, d1, c2, d2 = return_variables(mesh1d.edge_x_lengths[-2], h_0, m, k, u, R1, R2)
 
     # Calculate field value of ionosphere
     for i in iind:
@@ -157,11 +157,11 @@ def getEHfields(mesh1d, sigma1d, freq, zd=None, h_0=0, I=1, DL=1, fi=0, r=1e6, q
 
     return Ex, np.zeros_like(Ex), Hy, np.zeros_like(Hy)
 
-def return_variables(mesh1d, h_0, m, k, u, R1, R2):
-    c0c1 = 1. / 2 * (1 + u[-1] / u[-2]) * np.exp((u[-1]-u[-2]) * -mesh1d.edge_x_lengths[-2])
-    c0d1 = 1. / 2 * (1 - u[-1] / u[-2]) * np.exp((u[-1]+u[-2]) * -mesh1d.edge_x_lengths[-2])
-    c0c2 = 1. / 2 * (1 + u[-1] / u[-2] * k[-2]**2 / k[-1]**2) * np.exp((u[-1]-u[-2]) * -mesh1d.edge_x_lengths[-2])
-    c0d2 = 1. / 2 * (1 - u[-1] / u[-2] * k[-2]**2 / k[-1]**2) * np.exp((u[-1]+u[-2]) * -mesh1d.edge_x_lengths[-2])
+def return_variables(h_air, h_0, m, k, u, R1, R2):
+    c0c1 = 1. / 2 * (1 + u[-1] / u[-2]) * np.exp((u[-1]-u[-2]) * -h_air)
+    c0d1 = 1. / 2 * (1 - u[-1] / u[-2]) * np.exp((u[-1]+u[-2]) * -h_air)
+    c0c2 = 1. / 2 * (1 + u[-1] / u[-2] * k[-2]**2 / k[-1]**2) * np.exp((u[-1]-u[-2]) * -h_air)
+    c0d2 = 1. / 2 * (1 - u[-1] / u[-2] * k[-2]**2 / k[-1]**2) * np.exp((u[-1]+u[-2]) * -h_air)
 
     tmp = []
     tmp.append(c0c1 + c0d1)
@@ -193,7 +193,6 @@ def return_variables(mesh1d, h_0, m, k, u, R1, R2):
 
     return c01,d01,c02,d02,c1,d1,c2,d2
 
-    
 def calculate_EH(m, wj0, wj1, r, PE, freq, cofi, k, X, X_1, V, V_1, qwe_order, key):
     F=X
     FF = V_1
@@ -264,7 +263,7 @@ def EpsShanks(arr_, order, key, trim_a=1e-15, trim_b=1e-38):
     result = currentSum
     result_prev = 0
     err = np.abs(result - result_prev)
-    temp = [np.array([currentSum], dtype=np.complex128)]
+    temp = list([np.array([currentSum], dtype=np.complex128)])
 
     while err>(trim_a*np.abs(result)+trim_b) and indx<len(arr)-2:
         indx += 1
