@@ -7,7 +7,7 @@ from ....utils import mkvc, sdiag
 from .analytic_1d import getEHfields
 
 
-def get1DEfields(m1d, sigma, freq, sourceAmp=10.0):
+def get1DEfields(m1d, sigma, freq, r, qwe_order, sourceAmp=1.0):
     """Function to get 1D electrical fields"""
 
     # Get the gradient
@@ -25,7 +25,7 @@ def get1DEfields(m1d, sigma, freq, sourceAmp=10.0):
     Aio = A[1:-1, [0, -1]]
 
     # Set the boundary conditions
-    Ed, Eu, Hd, Hu = getEHfields(m1d, sigma, freq, m1d.nodes_x, qwe_order=40)
+    Ed, Eu, Hd, Hu = getEHfields(m1d, sigma, freq, m1d.nodes_x, r, qwe_order)
     Etot = Ed + Eu
     if sourceAmp is not None:
         Etot = (

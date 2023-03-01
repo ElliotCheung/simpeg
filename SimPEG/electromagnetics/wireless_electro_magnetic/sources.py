@@ -1,10 +1,4 @@
-import numpy as np
-
-from ... import maps
-from ..utils import omega
 from .utils.source_utils import homo1DModelSource
-import discretize
-from discretize.utils import volume_average
 from ..natural_source.sources import PlanewaveXYPrimary
 
 #################
@@ -21,10 +15,18 @@ class PlanewaveXYPrimary(PlanewaveXYPrimary):
     """
 
     # This class is herited from SimPEG.elextromagnetics.natural_source.sources.
+    def __init__(self, receiver_list, frequency, sigma_primary=None, trans_r=5e5, qwe_order=40):
+        # assert mkvc(self.mesh.h[2].shape,1) == mkvc(sigma1d.shape,1),'The number of values in the 1D background model does not match the number of vertical cells (hz).'
+        self.sigma1d = None
+        self._sigma_primary = sigma_primary
+        self.trans_r = trans_r
+        self.qwe_order = qwe_order
+        super(PlanewaveXYPrimary, self).__init__(receiver_list, frequency)
+
     def ePrimary(self, simulation):
         if self._ePrimary is None:
             sigma_1d, _ = self._get_sigmas(simulation)
             self._ePrimary = homo1DModelSource(
-                simulation.mesh, self.frequency, sigma_1d
+                simulation.mesh, self.frequency, sigma_1d, self.trans_r, self.qwe_order
             )
         return self._ePrimary

@@ -7,8 +7,9 @@ import importlib.resources
 
 coef_path = importlib.resources.path('SimPEG.electromagnetics.wireless_electro_magnetic.utils', 
     'coefficients.npz')
+np.seterr(divide='ignore')
 
-def getEHfields(mesh1d, sigma1d, freq, zd=None, h_0=0, I=1, DL=1, fi=0, r=4e6, qwe_order=30, key=False):
+def getEHfields(mesh1d, sigma1d, freq, zd=None, h_0=0, I=1, DL=1, fi=0, r=4e6, qwe_order=40, key=False):
     """
     Calculate the recieved field response
 
