@@ -58,24 +58,25 @@ class IdentityMap:
     mesh : discretize.BaseMesh
         The number of parameters accepted by the mapping is set to equal the number
         of mesh cells.
-    nP : int
+    nP : int, or '*'
         Set the number of parameters accepted by the mapping directly. Used if the
         number of parameters is known. Used generally when the number of parameters
         is not equal to the number of cells in a mesh.
     """
 
     def __init__(self, mesh=None, nP=None, **kwargs):
-        if nP is not None:
-            if isinstance(nP, str):
-                assert nP == "*", "nP must be an integer or '*', not {}".format(nP)
-            assert isinstance(
-                nP, (int, np.integer)
-            ), "Number of parameters must be an integer. Not `{}`.".format(type(nP))
-            nP = int(nP)
-        elif mesh is not None:
-            nP = mesh.nC
+        if (isinstance(nP, str) and nP == "*") or nP is None:
+            if mesh is not None:
+                nP = mesh.n_cells
+            else:
+                nP = "*"
         else:
-            nP = "*"
+            try:
+                nP = int(nP)
+            except (TypeError, ValueError) as err:
+                raise TypeError(
+                    f"Unrecognized input of {repr(nP)} for number of parameters, must be an integer or '*'."
+                ) from err
         self.mesh = mesh
         self._nP = nP
 
@@ -551,8 +552,8 @@ class LinearMap(IdentityMap):
     """
 
     def __init__(self, A, b=None, **kwargs):
-        mesh = kwargs.pop("mesh", None)
-        nP = kwargs.pop("nP", None)
+        kwargs.pop("mesh", None)
+        kwargs.pop("nP", None)
         super().__init__(**kwargs)
         self.A = A
         self.b = b
@@ -3019,16 +3020,21 @@ class Mesh2Mesh(IdentityMap):
     """
 
     def __init__(self, meshes, indActive=None, **kwargs):
+        # Sanity checks for the meshes parameter
         try:
             mesh, mesh2 = meshes
-        except:
-            raise TypeError("meshes must be a list of two meshes")
+        except TypeError:
+            raise TypeError("Couldn't unpack 'meshes' into two meshes.")
 
         super().__init__(mesh=mesh, **kwargs)
 
         self.mesh2 = mesh2
-        if self.mesh.dim != self.mesh2.dim:
-            raise ValueError("mesh and mesh2 must have the same dimension.")
+        # Check dimensions of both meshes
+        if mesh.dim != mesh2.dim:
+            raise ValueError(
+                f"Found meshes with dimensions '{mesh.dim}' and '{mesh2.dim}'. "
+                + "Both meshes must have the same dimension."
+            )
         self.indActive = indActive
 
     # reset to not accepted None for mesh
