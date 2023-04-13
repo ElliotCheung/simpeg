@@ -2,10 +2,10 @@ import numpy as np
 import discretize
 
 from ....utils import mkvc
-from .solutions_1d import get1DEfields
+from .solutions_1d import get1Dfields
 
 
-def homo1DModelSource(mesh, freq, sigma_1d):
+def homo1DModelSource(mesh, sigma_1d, freq, r, h_air, sig_iono, qwe_order):
     """
     Function that calculates and return background fields
 
@@ -24,7 +24,7 @@ def homo1DModelSource(mesh, freq, sigma_1d):
         mesh1d = discretize.TensorMesh([mesh.h[-1]], [mesh.x0[-1]])
 
     # Note: Everything is using e^iwt
-    e0_1d = get1DEfields(mesh1d, sigma_1d, freq)
+    e0_1d = get1Dfields(mesh1d, sigma_1d, freq, r, h_air, sig_iono, qwe_order)
     if mesh.dim == 1:
         eBG_px = mkvc(e0_1d, 2)
         eBG_py = -mkvc(

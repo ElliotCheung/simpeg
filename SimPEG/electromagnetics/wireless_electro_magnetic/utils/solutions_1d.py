@@ -1,4 +1,5 @@
 import numpy as np
+import discretize
 from scipy.constants import mu_0
 
 from .... import Solver
@@ -7,8 +8,10 @@ from ....utils import mkvc, sdiag
 from .analytic_1d import getEHfields
 
 
-def get1DEfields(m1d, sigma, freq, sourceAmp=1.0):
+def get1Dfields(m1d, sigma, freq, r, h_air, sig_iono, qwe_order, sourceAmp=1.0):
     """Function to get 1D electrical fields"""
+
+    m1d_iono = discretize.TensorMesh([np.hstack((m1d.h[0], [h_air, 5e4]))], m1d.x0)
 
     # Get the gradient
     G = m1d.nodal_gradient
@@ -25,7 +28,8 @@ def get1DEfields(m1d, sigma, freq, sourceAmp=1.0):
     Aio = A[1:-1, [0, -1]]
 
     # Set the boundary conditions
-    Ed, Eu, Hd, Hu = getEHfields(m1d, sigma, freq, m1d.nodes_x)
+    Ed, Eu, Hd, Hu = getEHfields(m1d_iono, np.hstack((sigma, [1e-14, sig_iono])), freq, m1d_iono.nodes_x[:-2], r=r, qwe_order=qwe_order)
+
     Etot = Ed + Eu
     if sourceAmp is not None:
         Etot = (

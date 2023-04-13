@@ -676,7 +676,7 @@ class Fields3DPrimarySecondary(Fields):
             complex,
         )
 
-    def _b_pyDeriv(self, src, du_dm_v, adjoint=False):
+    def _b_pyDeriv(self, src, du_dm_v, v, adjoint=False):
         """Derivative of b_px with respect to the solution (u) and model (m)"""
         # Primary does not depend on u
         return np.array(
