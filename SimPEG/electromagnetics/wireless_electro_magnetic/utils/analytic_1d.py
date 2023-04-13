@@ -9,7 +9,7 @@ coef_path = importlib.resources.path('SimPEG.electromagnetics.wireless_electro_m
     'coefficients.npz')
 np.seterr(divide='ignore')
 
-def getEHfields(mesh1d, sigma1d, freq, zd=None, h_0=0, I=1, DL=1, fi=0, r=4e6, qwe_order=40, key=False):
+def getEHfields(mesh1d, sigma1d, freq, zd=None, h_0=0, I=1, DL=1, fi=0, r=4e6, qwe_order=40, key=False, derivate=False):
     """
     Calculate the recieved field response
 
@@ -19,6 +19,9 @@ def getEHfields(mesh1d, sigma1d, freq, zd=None, h_0=0, I=1, DL=1, fi=0, r=4e6, q
 
     if zd is None:
         zd = np.array([0])
+
+    if r is None:
+        raise ValueError("Trans-receiver distance should be a positive real value.")
 
     # Setting up some frequently used constants.
     PE = I * DL
@@ -40,13 +43,17 @@ def getEHfields(mesh1d, sigma1d, freq, zd=None, h_0=0, I=1, DL=1, fi=0, r=4e6, q
 
     k = np.sqrt(-1j * omega(freq) * mu_0 * sigma1d - omega(freq)**2 * epsilon_0 * mu_0)
     u = np.ones((len(sigma1d),len(m)), dtype=np.complex128)
-    R1 = np.ones((len(sigma1d),len(m)), dtype=np.complex128)
-    R2 = np.ones((len(sigma1d),len(m)), dtype=np.complex128)
+    R1 = np.ones((len(sigma1d),len(m)), dtype=np.complex128)+1e-15
+    R2 = np.ones((len(sigma1d),len(m)), dtype=np.complex128)+1e-15
     
     for i in range(len(sigma1d)): u[i, :]=np.sqrt(m**2 + k[i]**2)
     for i in range(len(sigma1d)-1):
-        R1[i+1] = 1. / np.tanh(u[i+1] * mesh1d.edge_x_lengths[i+1] + np.arctanh(u[i]/u[i+1]/R1[i]))
-        R2[i+1] = 1. / np.tanh(u[i+1] * mesh1d.edge_x_lengths[i+1] + np.arctanh(sigma1d[i+1]*u[i] /sigma1d[i]/u[i+1]/R2[i]))
+        tmp1 = u[i+1] * mesh1d.edge_x_lengths[i+1]
+        tmp2 = np.arctanh(sigma1d[i+1]*u[i]/sigma1d[i]/u[i+1]/R2[i])
+        r1 = u[i+1] * mesh1d.edge_x_lengths[i+1] + np.arctanh(u[i]/u[i+1]/R1[i])
+        r2 = u[i+1] * mesh1d.edge_x_lengths[i+1] + np.arctanh(sigma1d[i+1]*u[i]/sigma1d[i]/u[i+1]/R2[i])
+        R1[i+1] = 1. / np.tanh(r1)
+        R2[i+1] = 1. / np.tanh(r2)
 
     # create empty output fields with input size
     Ex = np.empty((len(zd),), dtype=np.complex128)
