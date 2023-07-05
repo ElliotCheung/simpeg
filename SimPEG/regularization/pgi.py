@@ -74,7 +74,9 @@ class PGIsmallness(Smallness):
 
         if "mapping" in kwargs:
             warnings.warn(
-                f"Property 'mapping' of class {type(self)} cannot be set. Defaults to IdentityMap."
+                f"Property 'mapping' of class {type(self)} cannot be set. "
+                "Defaults to IdentityMap.",
+                stacklevel=2,
             )
             kwargs.pop("mapping")
 
@@ -748,7 +750,7 @@ class PGI(ComboObjectiveFunction):
                 )
             ]
 
-        super().__init__(objfcts=objfcts)
+        super().__init__(objfcts=objfcts, unpack_on_add=False)
         self.reference_model_in_smooth = reference_model_in_smooth
         self.alpha_pgi = alpha_pgi
 
